@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("CUSTOMER") // CUSTOMER | ADMIN
+  status       String   @default("ACTIVE") // ACTIVE | DISABLED
+  createdAt    DateTime @default(now())
+  resetToken   String?
+  resetExpires DateTime?
+
+  sessions      Session[]
+  loginAttempts LoginAttempt[]
+  customer      CustomerProfile?
+  admin         AdminProfile?
+}
+
+model CustomerProfile {
+  id         Int     @id @default(autoincrement())
+  userId     Int     @unique
+  firstName  String
+  middleName String?
+  lastName   String
+  salutation String?
+  phone      String?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  milesAccount MilesAccount?
+  bookings     Booking[]
+}
+
+model AdminProfile {
+  id      Int @id @default(autoincrement())
+  userId  Int @unique
+  adminId Int @unique
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    Int
+  token     String   @unique
+  ipAddress String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LoginAttempt {
+  id          Int      @id @default(autoincrement())
+  userId      Int?
+  username    String
+  ipAddress   String?
+  success     Boolean
+  attemptedAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model MilesAccount {
+  id          Int    @id @default(autoincrement())
+  number      String @unique
+  flightMiles Int    @default(0)
+  statusMiles Int    @default(0)
+  customerId  Int    @unique
+
+  customer CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model Airport {
+  id       Int     @id @default(autoincrement())
+  code     String  @unique
+  name     String
+  city     String
+  country  String
+  terminal String?
+
+  departures Flight[] @relation("DepartureAirport")
+  arrivals   Flight[] @relation("ArrivalAirport")
+}
+
+model Aircraft {
+  id       Int    @id @default(autoincrement())
+  model    String
+  capacity Int
+
+  flights Flight[]
+  seats   FlightSeat[]
+}
+
+model Flight {
+  id             Int      @id @default(autoincrement())
+  flightNo       String
+  departureTime  DateTime
+  arrivalTime    DateTime
+  status         String   @default("SCHEDULED") // SCHEDULED | DELAYED | CLOSED | CANCELLED
+  basePrice      Float
+  miles          Int      @default(0)
+  aircraftId     Int
+  departureId    Int
+  arrivalId      Int
+  connectionId   Int?
+
+  aircraft   Aircraft     @relation(fields: [aircraftId], references: [id])
+  departure  Airport      @relation("DepartureAirport", fields: [departureId], references: [id])
+  arrival    Airport      @relation("ArrivalAirport", fields: [arrivalId], references: [id])
+  connection Flight?      @relation("ConnectingFlights", fields: [connectionId], references: [id])
+  connections Flight[]    @relation("ConnectingFlights")
+  seats      FlightSeat[]
+  tickets    Ticket[]
+  bookings   Booking[]
+}
+
+model FlightSeat {
+  id         Int    @id @default(autoincrement())
+  seatNo     String
+  seatClass  String // ECONOMY | BUSINESS | FIRST
+  status     String @default("AVAILABLE") // AVAILABLE | HELD | SOLD
+  price      Float
+  aircraftId Int
+  flightId   Int
+  bookingId  Int?
+
+  aircraft Aircraft  @relation(fields: [aircraftId], references: [id])
+  flight   Flight    @relation(fields: [flightId], references: [id], onDelete: Cascade)
+  booking  Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  checkIn  CheckIn?
+
+  @@unique([flightId, seatNo])
+}
+
+model Booking {
+  id         Int      @id @default(autoincrement())
+  bookingRef String   @unique
+  status     String   @default("RESERVED") // RESERVED | PAID | TICKETED | CANCELLED
+  totalPrice Float
+  createdAt  DateTime @default(now())
+  customerId Int
+  flightId   Int
+
+  customer   CustomerProfile @relation(fields: [customerId], references: [id])
+  flight     Flight          @relation(fields: [flightId], references: [id])
+  passengers Passenger[]
+  payment    Payment?
+  tickets    Ticket[]
+  seats      FlightSeat[]
+}
+
+model Passenger {
+  id           Int      @id @default(autoincrement())
+  firstName    String
+  lastName     String
+  dateOfBirth  DateTime
+  nationality  String
+  bookingId    Int
+
+  booking Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  ticket  Ticket?
+}
+
+model Payment {
+  id             Int       @id @default(autoincrement())
+  amount         Float
+  method         String
+  status         String    @default("PENDING") // PENDING | AUTHORIZED | REFUNDED | FAILED
+  paidAt         DateTime?
+  transactionRef String?
+  bookingId      Int       @unique
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+model Ticket {
+  id        Int       @id @default(autoincrement())
+  ticketNo  String    @unique
+  status    String    @default("ISSUED") // ISSUED | CANCELLED | BOARDED
+  issuedAt  DateTime  @default(now())
+  bookingId Int
+  passengerId Int     @unique
+  flightId  Int
+
+  booking   Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  passenger Passenger  @relation(fields: [passengerId], references: [id], onDelete: Cascade)
+  flight    Flight     @relation(fields: [flightId], references: [id])
+  checkIn   CheckIn?
+}
+
+model CheckIn {
+  id            Int      @id @default(autoincrement())
+  boardingGate  String
+  checkInTime   DateTime @default(now())
+  status        String   @default("CHECKED_IN") // CHECKED_IN | BOARDED
+  ticketId      Int      @unique
+  seatId        Int      @unique
+
+  ticket Ticket     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  seat   FlightSeat @relation(fields: [seatId], references: [id])
+}
