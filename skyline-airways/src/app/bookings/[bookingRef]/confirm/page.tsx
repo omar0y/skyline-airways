@@ -49,13 +49,15 @@ export default async function ConfirmPage({
         </p>
         <p>
           <span className="font-bold text-primary">Paid:</span>{" "}
-          {formatMoney(booking.payment?.amount ?? booking.totalPrice)} via{" "}
+          {formatMoney(booking.payment?.amount ?? booking.totalPrice, booking.payment?.currency)} via{" "}
           {booking.payment?.method ?? "N/A"} ({booking.payment?.transactionRef})
         </p>
-        <p>
-          <span className="font-bold text-primary">Seats:</span>{" "}
-          {booking.seats.map((s) => s.seatNo).join(", ")}
-        </p>
+        {booking.seats.length ? (
+          <p>
+            <span className="font-bold text-primary">Seats:</span>{" "}
+            {booking.seats.map((s) => s.seatNo).join(", ")}
+          </p>
+        ) : null}
         <div>
           <p className="mb-2 font-bold text-primary">Tickets</p>
           <ul className="space-y-1">

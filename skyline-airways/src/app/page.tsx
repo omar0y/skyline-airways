@@ -7,7 +7,7 @@ export default async function HomePage() {
   const defaultDate = format(new Date(Date.now() + 3 * 86400000), "yyyy-MM-dd");
 
   return (
-    <section className="hero-sky relative min-h-[calc(100vh-4rem)] overflow-hidden text-white">
+    <section className="hero-sky relative min-h-[calc(100vh-4rem)] text-white">
       <div
         className="pointer-events-none absolute inset-0 opacity-40"
         style={{

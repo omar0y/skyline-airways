@@ -8,13 +8,16 @@ const initial: ActionState = { ok: false };
 
 export function LoginForm({
   action,
+  nextPath,
 }: {
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
+  nextPath?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initial);
 
   return (
     <form action={formAction} className="space-y-4">
+      {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
       {state.errors?.length ? (
         <div className="error-summary" role="alert" tabIndex={-1}>
           <h2 id="error-title" className="mb-2 font-bold">

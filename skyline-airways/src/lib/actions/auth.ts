@@ -18,6 +18,11 @@ function formString(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
 }
 
+function safeNextPath(value: string) {
+  if (!/^\/book\/offer\/off_[A-Za-z0-9]+(\?passengers=[1-9])?$/.test(value)) return null;
+  return value;
+}
+
 async function clientIp() {
   const h = await headers();
   return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null;
@@ -105,7 +110,8 @@ export async function loginAction(
   }
 
   await createSession(user.id, ip);
-  redirect(user.role === "ADMIN" ? "/admin" : "/account");
+  const next = safeNextPath(formString(formData, "next"));
+  redirect(next || (user.role === "ADMIN" ? "/admin" : "/account"));
 }
 
 export async function registerAction(

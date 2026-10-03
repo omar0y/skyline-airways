@@ -1,11 +1,22 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
+import { searchDuffelFlights } from "@/lib/duffel";
 import { SearchForm } from "@/components/SearchForm";
 import { FlightCard } from "@/components/FlightCard";
 import { FlightGridMotion } from "@/components/FlightGridMotion";
 import { BookingStepper } from "@/components/BookingStepper";
 
 export const metadata = { title: "Flights" };
+export const dynamic = "force-dynamic";
+
+function ResultsMessage({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="surface p-8 text-center" role="status">
+      <h2 className="text-xl font-bold text-primary">{title}</h2>
+      <p className="mt-2 text-sm">{body}</p>
+    </div>
+  );
+}
 
 async function FlightResults({
   source,
@@ -22,55 +33,38 @@ async function FlightResults({
   seatClass?: string;
   maxPrice?: string;
 }) {
-  const dayStart = travelDate ? new Date(`${travelDate}T00:00:00`) : undefined;
-  const dayEnd = travelDate ? new Date(`${travelDate}T23:59:59`) : undefined;
-
-  const flights = await prisma.flight.findMany({
-    where: {
-      status: { in: ["SCHEDULED", "DELAYED"] },
-      ...(source ? { departure: { code: source.toUpperCase() } } : {}),
-      ...(destination ? { arrival: { code: destination.toUpperCase() } } : {}),
-      ...(dayStart && dayEnd
-        ? { departureTime: { gte: dayStart, lte: dayEnd } }
-        : {}),
-      ...(maxPrice ? { basePrice: { lte: Number(maxPrice) } } : {}),
-      ...(seatClass
-        ? {
-            seats: {
-              some: { seatClass: seatClass.toUpperCase(), status: "AVAILABLE" },
-            },
-          }
-        : {}),
-    },
-    include: {
-      departure: true,
-      arrival: true,
-      seats: {
-        where: { status: "AVAILABLE" },
-        select: { id: true },
-      },
-    },
-    orderBy: { departureTime: "asc" },
-    take: 40,
+  const result = await searchDuffelFlights({
+    origin: source,
+    destination,
+    date: travelDate,
+    passengers,
+    cabin: seatClass,
+    maxPrice,
   });
 
-  const available = flights.filter((f) => f.seats.length >= passengers);
+  if (!result.ok) {
+    return <ResultsMessage title={result.title} body={result.message} />;
+  }
 
-  if (!available.length) {
+  if (!result.flights.length) {
     return (
-      <div className="surface p-8 text-center">
-        <h2 className="text-xl font-bold text-primary">No flights found</h2>
-        <p className="mt-2 text-sm">
-          Try another date or route. Seeded demo routes include CAI–DXB, DXB–LHR, and more.
-        </p>
-      </div>
+      <ResultsMessage
+        title="No flights found"
+        body="No offers matched this route, date, or price. Try another city or a later date."
+      />
     );
   }
 
   return (
     <FlightGridMotion>
-      {available.map((flight) => (
-        <FlightCard key={flight.id} flight={flight} passengers={passengers} />
+      {result.flights.map((flight) => (
+        <FlightCard
+          key={flight.id}
+          flight={flight}
+          passengers={passengers}
+          href={`/book/offer/${flight.id}?passengers=${passengers}`}
+          actionLabel="Book"
+        />
       ))}
     </FlightGridMotion>
   );
@@ -89,7 +83,9 @@ export default async function FlightsPage({
     <div className="mx-auto max-w-6xl px-4 py-10 md:px-6">
       <BookingStepper current={params.source ? 2 : 1} />
       <h1 className="mb-2 text-3xl font-bold text-primary">Search results</h1>
-      <p className="mb-6 text-sm">Filter by class and price, then select a flight.</p>
+      <p className="mb-6 text-sm">
+        Results come from Duffel test mode. Use any 3-letter airport code.
+      </p>
 
       <div className="surface mb-8 p-5">
         <SearchForm
@@ -121,7 +117,7 @@ export default async function FlightsPage({
             </select>
           </div>
           <div className="field">
-            <label htmlFor="maxPrice">Max price (USD)</label>
+            <label htmlFor="maxPrice">Max price</label>
             <input
               id="maxPrice"
               name="maxPrice"

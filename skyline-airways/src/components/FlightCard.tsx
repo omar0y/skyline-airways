@@ -9,20 +9,29 @@ import {
 
 type FlightCardProps = {
   flight: {
-    id: number;
+    id: string | number;
     flightNo: string;
-    departureTime: Date;
-    arrivalTime: Date;
+    departureTime: Date | string;
+    arrivalTime: Date | string;
     basePrice: number;
+    currency?: string;
     status: string;
     miles: number;
+    detail?: string;
     departure: { code: string; city: string };
     arrival: { code: string; city: string };
   };
   passengers?: number;
+  href?: string;
+  actionLabel?: string;
 };
 
-export function FlightCard({ flight, passengers = 1 }: FlightCardProps) {
+export function FlightCard({
+  flight,
+  passengers = 1,
+  href,
+  actionLabel = "Select flight",
+}: FlightCardProps) {
   return (
     <article className="grid-item surface flex flex-col gap-4 p-5 transition-shadow duration-200 hover:shadow-md md:flex-row md:items-center md:justify-between">
       <div className="space-y-2">
@@ -52,19 +61,24 @@ export function FlightCard({ flight, passengers = 1 }: FlightCardProps) {
           </div>
         </div>
         <p className="text-sm text-muted-foreground">
-          {formatDate(flight.departureTime)} · {flight.miles} miles
+          {formatDate(flight.departureTime)}
+          {flight.detail
+            ? ` · ${flight.detail}`
+            : flight.miles
+              ? ` · ${flight.miles} miles`
+              : ""}
         </p>
       </div>
       <div className="flex flex-col items-start gap-3 md:items-end">
         <p className="text-2xl font-bold text-primary">
-          {formatMoney(flight.basePrice)}
+          {formatMoney(flight.basePrice, flight.currency)}
           <span className="ml-1 text-sm font-normal text-muted-foreground">/ adult</span>
         </p>
         <Link
-          href={`/flights/${flight.id}?passengers=${passengers}`}
+          href={href ?? `/flights/${flight.id}?passengers=${passengers}`}
           className="btn btn-primary"
         >
-          Select flight
+          {actionLabel}
         </Link>
       </div>
     </article>

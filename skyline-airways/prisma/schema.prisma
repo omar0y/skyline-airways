@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -110,6 +110,7 @@ model Flight {
   departureId    Int
   arrivalId      Int
   connectionId   Int?
+  duffelOfferId  String?  @unique
 
   aircraft   Aircraft     @relation(fields: [aircraftId], references: [id])
   departure  Airport      @relation("DepartureAirport", fields: [departureId], references: [id])
@@ -147,6 +148,7 @@ model Booking {
   createdAt  DateTime @default(now())
   customerId Int
   flightId   Int
+  duffelOrderId String? @unique
 
   customer   CustomerProfile @relation(fields: [customerId], references: [id])
   flight     Flight          @relation(fields: [flightId], references: [id])
@@ -175,6 +177,7 @@ model Payment {
   status         String    @default("PENDING") // PENDING | AUTHORIZED | REFUNDED | FAILED
   paidAt         DateTime?
   transactionRef String?
+  currency       String    @default("USD")
   bookingId      Int       @unique
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)

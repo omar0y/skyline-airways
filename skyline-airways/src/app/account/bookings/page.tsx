@@ -44,7 +44,7 @@ export default async function AccountBookingsPage() {
                   </p>
                   <p className="text-sm">{formatDateTime(b.flight.departureTime)}</p>
                   <p className="text-sm">
-                    Status: {b.status} · {formatMoney(b.totalPrice)}
+                    Status: {b.status} · {formatMoney(b.totalPrice, b.payment?.currency)}
                   </p>
                   <p className="text-sm">
                     Seats: {b.seats.map((s) => s.seatNo).join(", ") || "—"}
